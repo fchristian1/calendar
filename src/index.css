@@ -1,0 +1,9 @@
+@import "tailwindcss";
+button {
+  @apply bg-gray-200 hover:bg-gray-300 px-2 border-2 border-gray-300 rounded cursor-pointer;
+}
+.cell-text{
+  color: black;
+  -webkit-text-fill-color: white; /* Will override color (regardless of order) */
+  -webkit-text-stroke: 3px black;
+}
