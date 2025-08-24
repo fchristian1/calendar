@@ -1,12 +1,55 @@
-# React + Vite
+# Calendar Component
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The `Calendar` component is a comprehensive React component that provides an interactive calendar view. It is composed of several subcomponents and functions that work together to deliver a dynamic and customizable calendar interface. Below is an overview of its structure and functionality:
 
-Currently, two official plugins are available:
+## Main Components
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 1. `Calendar`
 
-## Expanding the ESLint configuration
+- The main component that manages the entire calendar and navigation.
+- Uses `useState` hooks to manage the state for the year, active menus, and colors.
+- Provides navigation between the calendar view and settings.
+- Allows creating screenshots for the entire year or individual months.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 2. `CalendarGrid`
+
+- Displays the monthly view, including week and day grids.
+- Supports the display of holidays, vacation days, and workdays.
+- Utilizes the `html2canvas` library to create screenshots of the calendar.
+- Dynamically generated grids are based on weekdays and months.
+
+### 3. `CalendarHeader`
+
+- Displays a legend for calendar colors, such as holidays, vacations, and special workdays.
+
+### 4. `CalendarSettings`
+
+- Allows customization of calendar colors and other settings.
+- Uses a color picker component (`ColorSelector`) for interactive color selection.
+
+### 5. `ColorSelector`
+
+- A modal component that enables color selection.
+- Supports drag-and-drop for positioning.
+
+## Functions
+
+- **`getISOWeekNumber`**: Calculates the ISO week number for a given date.
+- **`getMonthGridStartMonday`**: Determines the starting point of a month grid that begins on a Monday.
+- **`takeshot`**: Creates screenshots of the calendar or individual months.
+
+## State and Data
+
+- **`state`**: Contains information about active menus and data such as workdays.
+- **`colors`**: Defines the colors for various calendar categories (e.g., holidays, vacations).
+- **`shot`**: Controls the screenshot functionality.
+
+## Features
+
+- Supports dynamic adjustments based on user input.
+- Provides a clear separation between presentation (`CalendarGrid`) and logic (`Calendar`).
+- Uses TailwindCSS classes for styling.
+
+## Summary
+
+The `Calendar` component is modular and provides a flexible foundation for displaying and interacting with calendar data. It is ideal for applications requiring a visual representation of schedules or events.
