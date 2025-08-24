@@ -230,7 +230,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
       <div>
         <h2 className="font-bold">Kalender Einstellungen</h2>
         <div className="flex gap-2">
-          <div className="h-4 aspect-square">{selectedColor ?? "null"}</div>
+          <div className="h-4 aspect-square text-nowrap">{selectedColor ?? "null"}</div>
           <button onClick={handleClickShowSelector}>Sel</button>
         </div>
       </div>
@@ -278,9 +278,23 @@ export function ColorSelector({ top = 0, left = 0, selectedColor, onResolve }) {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-26">
-        {getTailwindColors().colors.map((colorData) => {
-          return <div key={colorData.name} className={`h-4 w-4 border bg-${colorData.name}-500`}></div>;
+      <div className="grid grid-rows-10">
+        {getTailwindColors().gradations.map((g) => {
+          return (
+            <div key={g} className="grid grid-cols-22">
+              {getTailwindColors().colors.map((colorData) => {
+                return (
+                  <div
+                    onClick={() => {
+                      onResolve(`${colorData.name}-${g}`);
+                    }}
+                    key={colorData.name}
+                    className={`cursor-pointer h-4 w-4 border bg-${colorData.name}-${g}`}
+                  ></div>
+                );
+              })}
+            </div>
+          );
         })}
       </div>
     </div>

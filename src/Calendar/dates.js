@@ -25,10 +25,6 @@ export function getTailwindColors() {
       { name: "fuchsia", de: "Fuchsie" },
       { name: "pink", de: "Pink" },
       { name: "rose", de: "Rosa" },
-      { name: "black", de: "Schwarz" },
-      { name: "white", de: "Weiß" },
-      { name: "transparent", de: "Transparent" },
-      { name: "current", de: "Aktuelle Farbe" }
     ]
   }
 }

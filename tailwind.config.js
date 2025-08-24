@@ -1,5 +1,5 @@
 // tailwind.config.js
-import { getTailwindColors } from "./tailwindColors.js";
+import { getTailwindColors } from "./src/Calendar/dates.js";
 
 function buildSafelist() {
   console.log("test");

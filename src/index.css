@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
+@source inline("{bg,text,border}-{slate,gray,zinc,neutral,stone,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{50,{100..900..100},950}");
+@source inline("{bg,text,border}-{black,white,transparent,current}");
+
 button {
   @apply bg-gray-200 hover:bg-gray-300 px-2 border-2 border-gray-300 rounded cursor-pointer;
 }
