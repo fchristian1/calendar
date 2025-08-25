@@ -41,8 +41,7 @@
     "start": "npm i && npm run build && electron-forge start",
     "package": "npm i && npm run build && electron-forge package",
     "make": "npm i && npm run build && electron-forge make",
-    "dist": "electron-builder --win",
-    "dist:nsis": "electron-builder --win nsis"
+    "dist": "npm i && npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.12",
