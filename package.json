@@ -7,11 +7,27 @@
   "type": "module",
   "main": "main.js",
   "build": {
+    "appId": "com.christian.247calendar",
+    "productName": "247Calendar",
     "files": [
       "dist/**/*",
       "main.js",
       "preload.cjs"
-    ]
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "scripts": {
     "dev": "vite",
@@ -20,7 +36,9 @@
     "preview": "vite preview",
     "start": "npm i && npm run build && electron-forge start",
     "package": "npm i && npm run build && electron-forge package",
-    "make": "npm i && npm run build && electron-forge make"
+    "make": "npm i && npm run build && electron-forge make",
+    "dist": "electron-builder --win",
+    "dist:nsis": "electron-builder --win nsis"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.12",
@@ -49,6 +67,7 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "electron": "^37.3.1",
+    "electron-builder": "^24.13.3",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
