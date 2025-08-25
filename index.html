@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React</title>
+  </head>
+  <body id="root" class="flex flex-col h-screen">
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+  <script>
+    function takeshot() {
+      let div = document.getElementById("calendar");
+
+      // Use the html2canvas
+      // function to take a screenshot
+      // and append it
+      // to the output div
+      html2canvas(div).then(function (canvas) {
+        document.getElementById("output").appendChild(canvas);
+      });
+    }
+  </script>
+</html>
