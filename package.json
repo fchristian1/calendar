@@ -17,7 +17,7 @@
     "preview": "vite preview",
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "rm -r node_modules && npm install --platform=win32 && electron-forge make && rm -r node_modules && npm i"
+    "make": "npm run i && npm run build && electron-forge make"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.12",
