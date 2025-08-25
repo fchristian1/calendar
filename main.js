@@ -27,6 +27,8 @@ const createWindow = () => {
 ipcMain.handle('load-data', async () => {
   try {
     const p = path.join(app.getPath('userData'), DATA_FILE)
+    // C:\Users\<User>\AppData\Roaming\247calendar
+    // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Loading data from ${p}`)
     if (!fs.existsSync(p)) return null
     const raw = await fs.promises.readFile(p, 'utf-8')
@@ -39,6 +41,9 @@ ipcMain.handle('load-data', async () => {
 ipcMain.handle('save-data', async (event, data) => {
   try {
     const p = path.join(app.getPath('userData'), DATA_FILE)
+    // C:\Users\<User>\AppData\Roaming\247calendar
+    // /home/<user>/.config/247calendar/247calender_data.json
+
     console.log(`Loading data from ${p}`)
     await fs.promises.writeFile(p, JSON.stringify(data, null, 2), 'utf-8')
     return { ok: true }

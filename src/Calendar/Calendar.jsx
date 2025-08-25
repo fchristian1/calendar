@@ -1,5 +1,5 @@
 import html2canvas from "html2canvas-pro";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { getHolidays, getTailwindColors, getVacationDays } from "./dates.js";
 
 // Minimal presentational calendar view.
@@ -36,7 +36,7 @@ function getMonthGridStartMonday(year, month) {
   const dayOfWeekMon = (firstOfMonth.getDay() + 6) % 7; // Monday=0
   return new Date(year, month, 1 - dayOfWeekMon);
 }
-export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear }) {
+export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear, persons = [] }) {
   const [holidays, setHolidays] = useState(getHolidays(year));
   const [vacations, setVacations] = useState(getVacationDays(year));
   const [infoText, setInfoText] = useState("");
@@ -77,7 +77,7 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear })
   return (
     <div id="calendar">
       <div className={`flex flex-col min-h-0 m-1`}>
-        <CalendarHeader colors={colors} />
+        <CalendarHeader colors={colors} persons={persons} />
         <div className={`${colors.attentionText} text-xs`}>{infoText}</div>
         <div className="gap-[1px] grid grid-cols-4">
           {months.map((month) => {
@@ -89,9 +89,9 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear })
             });
 
             return (
-              <div id={"m-" + month}>
+              <div key={"m-" + month} id={"m-" + month}>
                 <div className={` ${shot.shot && shot.target != "calendar" ? "m-1" : ""} `}>
-                  {shot.shot && shot.target != "calendar" && <CalendarHeader colors={colors} shot={shot.shot} />}
+                  {shot.shot && shot.target != "calendar" && <CalendarHeader persons={persons} colors={colors} shot={shot.shot} />}
                   <div key={month} className="flex flex-col gap-[1px] p-[1px] border rounded h-full">
                     <div className="font-semibold text-center">
                       {MONTH_NAMES[month]} {shot.shot && shot.target != "calendar" && year}
@@ -182,34 +182,32 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear })
   );
 }
 
-function CalendarHeader({ shot = false, colors }) {
+function CalendarHeader({ shot = false, colors, persons }) {
   return (
     <div className={`flex ${shot ? "flex-col" : "flex-row"} gap-1 mb-[1px]`}>
       <div className="flex gap-1 p-1 border rounded">
         <div className="flex gap-1">
-          <span>Ferien</span>
           <div className={`h-6 aspect-square border-2 ${colors.vacationBorder} rounded`}></div>
+          <span>Ferien</span>
         </div>
         <div className="flex gap-1">
-          <span>Feiertag</span>
           <div className={`h-6 aspect-square border-2 ${colors.holidayBorder} rounded`}></div>
+          <span>Feiertag</span>
         </div>
       </div>
       <div className={`flex ${shot ? " flex-col " : " flex-row "} gap-1 p-1 border rounded`}>
         <div className="flex gap-1">
-          <span>Achtung!</span>
           <div className={`h-6 aspect-square border-2 rounded`}>
             <div className={`border-2 ${colors.attentionBorder} w-full h-full`}></div>
           </div>
+          <span>Achtung!</span>
         </div>
-        <div className="flex gap-1">
-          <span>Christian</span>
-          <div className={`h-6 aspect-square border-2 bg-green-300 rounded`}></div>
-        </div>
-        <div className="flex gap-1">
-          <span>Dennis</span>
-          <div className={`h-6 aspect-square border-2 bg-blue-300 rounded`}></div>
-        </div>
+        {persons?.map((p, i) => (
+          <div className="flex items-center gap-1" key={p.id || i}>
+            <div className={`h-6 aspect-square border-2 bg-${p.color || 'bg-gray-200'} rounded`}></div>
+            <span>{p.name}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -218,6 +216,7 @@ function CalendarHeader({ shot = false, colors }) {
 export function CalendarSettings({ colors, setColors, state, setState }) {
   const [selectedColor, setSelectedColor] = useState(null);
   const [colorSelector, showColorSelector] = useColorSelector();
+  const [showNewWorkday, setShowNewWorkday] = useState(false);
 
   // persons management
   const [showNewPerson, setShowNewPerson] = useState(false);
@@ -226,10 +225,169 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   const [personName, setPersonName] = useState("");
   const [personColor, setPersonColor] = useState("");
 
+  // allocation management
+  const [allocationMenu, setAllocationMenu] = useState("");
+
+
+  // Color Management
+  const [showColorSetting, setShowColorSetting] = useState(false);
+  const handleClickShowAllocationMenu = (menu) => {
+    if (allocationMenu == "") {
+      setAllocationMenu(menu);
+    } else {
+      if (allocationMenu == menu) setAllocationMenu("");
+      else setAllocationMenu(menu);
+    }
+  };
+
   const handleClickShowSelector = async () => {
     const result = await showColorSelector({ top: 100, left: 100, selectedColor });
     setSelectedColor(result);
   };
+
+  // period allocation state (for "Neue Periode")
+  const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
+  const [periodWeekday, setPeriodWeekday] = useState(5); // default Samstag (Mo=0)
+  const [periodPersonIndex, setPeriodPersonIndex] = useState(-1);
+  const [periodHolidayMap, setPeriodHolidayMap] = useState({});
+
+  // current allocation (month view) state
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); // 0-11
+  const [currentPersonIndex, setCurrentPersonIndex] = useState(-1);
+  const [currentHolidayMap, setCurrentHolidayMap] = useState({});
+
+  useEffect(() => {
+    // build holiday map for the selected year
+    try {
+      const hs = getHolidays(periodYear) || [];
+      const map = {};
+      hs.forEach((h) => {
+        map[`${h.year}-${h.month}-${h.day}`] = h;
+      });
+      setPeriodHolidayMap(map);
+    } catch (e) {
+      setPeriodHolidayMap({});
+    }
+  }, [periodYear]);
+
+  useEffect(() => {
+    try {
+      const hs = getHolidays(currentYear) || [];
+      const map = {};
+      hs.forEach((h) => (map[`${h.year}-${h.month}-${h.day}`] = h));
+      setCurrentHolidayMap(map);
+    } catch (e) {
+      setCurrentHolidayMap({});
+    }
+  }, [currentYear]);
+
+  function getDatesForWeekday(year, weekdayIndex) {
+    // weekdayIndex: 0 = Mo, ..., 6 = So
+    const dates = [];
+    const jsTarget = (weekdayIndex + 1) % 7; // JS: 0=Sun,1=Mon,...
+    const start = new Date(year, 0, 1);
+    // find first occurrence
+    let d = new Date(start);
+    while (d.getFullYear() === year) {
+      if (d.getDay() === jsTarget) {
+        break;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    if (d.getFullYear() !== year) return dates;
+    for (let cur = new Date(d); cur.getFullYear() === year; cur.setDate(cur.getDate() + 7)) {
+      dates.push(new Date(cur));
+    }
+    return dates;
+  }
+
+  function toggleAssignDate(dt) {
+    // dt: Date
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const d = dt.getDate();
+    const workdays = (state?.DATA?.workdays) || [];
+    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    // if a person is selected, assign/update to that person; else toggle removal
+    if (periodPersonIndex >= 0 && persons[periodPersonIndex]) {
+      const person = persons[periodPersonIndex];
+      const name = person.name || "";
+      const pc = person.color || "";
+      const colorVal = pc.startsWith('bg-') ? pc : (pc ? `bg-${pc}` : 'bg-green-300');
+      if (idx >= 0) {
+        // update existing
+        const newWork = [...workdays];
+        newWork[idx] = { ...newWork[idx], name, color: colorVal };
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      } else {
+        // create new
+        const newWork = [...workdays, { year: y, month: m, day: d, name, color: colorVal, special: false }];
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      }
+    } else {
+      // no person selected -> toggle removal if exists
+      if (idx >= 0) {
+        const newWork = workdays.filter((_, i) => i !== idx);
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      }
+    }
+  }
+
+  function getDaysInMonth(year, monthIndex) {
+    // monthIndex: 0-11
+    const days = [];
+    const d = new Date(year, monthIndex, 1);
+    while (d.getMonth() === monthIndex) {
+      days.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+    return days;
+  }
+
+  function toggleAssignCurrent(dt) {
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const d = dt.getDate();
+    const workdays = (state?.DATA?.workdays) || [];
+    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    if (currentPersonIndex >= 0 && persons[currentPersonIndex]) {
+      const person = persons[currentPersonIndex];
+      const name = person.name || "";
+      const pc = person.color || "";
+      const colorVal = pc.startsWith('bg-') ? pc : (pc ? `bg-${pc}` : 'bg-green-300');
+      if (idx >= 0) {
+        const newWork = [...workdays];
+        newWork[idx] = { ...newWork[idx], name, color: colorVal };
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      } else {
+        const newWork = [...workdays, { year: y, month: m, day: d, name, color: colorVal, special: false }];
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      }
+    } else {
+      if (idx >= 0) {
+        const newWork = workdays.filter((_, i) => i !== idx);
+        setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+      }
+    }
+  }
+
+  function toggleSpecialDate(dt) {
+    const y = dt.getFullYear();
+    const m = dt.getMonth() + 1;
+    const d = dt.getDate();
+    const workdays = (state?.DATA?.workdays) || [];
+    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    if (idx >= 0) {
+      const newWork = [...workdays];
+      newWork[idx] = { ...newWork[idx], special: !newWork[idx].special };
+      setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+    } else {
+      // create a minimal workday entry with special flag
+      const newWork = [...workdays, { year: y, month: m, day: d, name: '', color: 'bg-green-300', special: true }];
+      setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
+    }
+  }
 
   const startEdit = (i) => {
     const p = persons[i];
@@ -262,9 +420,11 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     clearForm();
   };
 
+  // ...existing code...
+
   return (
     <>
-      <div>
+      <div className="min-w-[800px]">
         <h2 className="font-bold">Kalender Einstellungen</h2>
         <div className="flex flex-col gap-2">
           <div className="p-2 border rounded">
@@ -273,13 +433,13 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
               <button onClick={() => setShowNewPerson(true)}>Neu</button>
             </div>
             {showNewPerson && <div className="flex flex-col items-center gap-2 bg-green-100 mt-1 p-1 border rounded">
-              <div>
-                <input className="bg-white p-1 border rounded" placeholder="Name" value={personName} onChange={(e) => setPersonName(e.target.value)} />
-                <input disabled className="bg-white" placeholder="Auswählen -->" value={personColor} onChange={(e) => setPersonColor(e.target.value)} />
+              <div className="flex flex-row items-center gap-2">
                 <button onClick={async () => {
                   const res = await showColorSelector({ top: 100, left: 100, selectedColor: personColor });
                   if (res) setPersonColor(res);
                 }}>Farbe</button>
+                <div className={`h-6 aspect-square border-2 bg-${personColor || 'bg-gray-200'} rounded`}></div>
+                <input className="bg-white p-1 border rounded" placeholder="Name" value={personName} onChange={(e) => setPersonName(e.target.value)} />
               </div>
               <div className="flex flex-row gap-2">
                 <button onClick={savePerson}>{editIndex >= 0 ? 'Update' : 'Speichern'}</button>
@@ -289,17 +449,154 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
             <div className="mt-1 p-1 border rounded">
               {persons.length === 0 && <div className="text-gray-500 text-xs">Keine Personen</div>}
               {persons.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 py-1 border-b">
-                  <div className="flex-1">{p.name} <span className="text-gray-500 text-xs">{p.color}</span></div>
+                <div key={i} className="flex items-center gap-2 py-1 [&:not(:last-child)]:border-b">
+                  <div className="flex flex-row flex-1 gap-2">
+                    <div className={`h-6 aspect-square border-2 bg-${p.color || 'bg-gray-200'} rounded`}></div>
+                    <span>{p.name}</span>
+                  </div>
                   <button onClick={() => startEdit(i)}>Edit</button>
                   <button onClick={() => deletePerson(i)}>Löschen</button>
                 </div>
               ))}
             </div>
           </div>
-          <div className="mt-2 p-2 border rounded">
-            <h3 className="font-semibold">App Farben</h3>
-            <div className="gap-2 grid grid-cols-3 mt-2">
+          <div>
+            <div className="p-2 border rounded"><h3 className="font-semibold">Zuweisen von Personen</h3>
+              <div className="mb-1">
+                <button onClick={() => handleClickShowAllocationMenu("current")}>Aktuelle zuweisung</button>
+                <button onClick={() => handleClickShowAllocationMenu("newPeriod")}>Periode</button>
+              </div>
+              {allocationMenu == "current" && (
+                <div className="p-2 border rounded">
+                  <div className="font-medium">Aktuelle Zuweisung (Monatsübersicht)</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div>
+                      <label className="text-xs">Jahr</label>
+                      <input type="number" min="1970" max="2099" className="ml-1 p-1 border rounded w-24" value={currentYear} onChange={(e) => setCurrentYear(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="text-xs">Monat</label>
+                      <select className="ml-1 p-1 border rounded" value={currentMonth} onChange={(e) => setCurrentMonth(Number(e.target.value))}>
+                        {MONTH_NAMES.map((mName, idx) => (<option key={idx} value={idx}>{mName}</option>))}
+                      </select>
+                    </div>
+                    <div className="flex items-center">
+                      <label className="text-xs">Person</label>
+                      <div className="flex items-center gap-2 ml-1">
+                        <div onClick={() => setCurrentPersonIndex(-1)} className={`cursor-pointer border-2 ${currentPersonIndex === -1 ? 'border-amber-500' : ''} rounded w-6 h-6 aspect-square items-center flex justify-center font-bold`}></div>
+                        {persons.map((p, i) => (
+                          <div key={i} onClick={() => setCurrentPersonIndex(i)} className={`cursor-pointer border-2 ${currentPersonIndex === i ? 'border-amber-500' : ''} rounded w-6 h-6 aspect-square items-center flex justify-center font-bold bg-${p.color}`} title={p.name}>
+                            {p.name?.slice(0, 1)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-gray-600 text-sm">Klicke Tag, um zuweisen / entfernen</div>
+                  </div>
+                  <div className="mt-2">
+                    <div className="gap-1 grid grid-cols-7 mb-1 font-medium text-xs">
+                      {WEEKDAY_NAMES.map((wd) => (<div key={wd} className="text-center">{wd}</div>))}
+                    </div>
+                    <div className="gap-1 grid grid-cols-7">
+                      {getDaysInMonth(currentYear, currentMonth).map((dt) => {
+                        const y = dt.getFullYear();
+                        const m = dt.getMonth() + 1;
+                        const d = dt.getDate();
+                        const key = `${y}-${m}-${d}`;
+                        const holiday = currentHolidayMap[key];
+                        const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
+                        return (
+                          <div key={key} onClick={() => toggleAssignCurrent(dt)} className={`p-1 border rounded h-20 cursor-pointer flex flex-col justify-between ${existing ? '' : ''}`}>
+                            <div className="flex justify-between items-center w-full">
+                              <div className="text-xs">{d}</div>
+                              <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                            </div>
+                            <div className="text-red-600 text-xs text-center">{holiday ? holiday.name : ''}</div>
+                            <div className="flex justify-center">
+                              <div className={`w-6 h-6 rounded border-2 ${existing ? existing.color : 'transparent'} flex items-center justify-center font-bold`}>{existing ? existing.name?.slice(0, 1) : ''}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {allocationMenu == "newPeriod" && (
+                <div className="p-2 border rounded">
+                  <div className="font-medium">Periode (Wochentags-Zuordnung über Jahr)</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div>
+                      <label className="text-xs">Jahr</label>
+                      <input type="number" min="1970" max="2099" className="ml-1 p-1 border rounded w-24" value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))} />
+                    </div>
+                    <div>
+                      <label className="text-xs">Wochentag</label>
+                      <select className="ml-1 p-1 border rounded" value={periodWeekday} onChange={(e) => setPeriodWeekday(Number(e.target.value))}>
+                        <option value={-1}>Feiertag</option>
+                        {WEEKDAY_NAMES.map((n, idx) => (<option key={idx} value={idx}>{n}</option>))}
+                      </select>
+                    </div>
+                    <div>
+
+                      {/* <select className="ml-1 p-1 border rounded" value={periodPersonIndex} onChange={(e) => setPeriodPersonIndex(Number(e.target.value))}>
+                        <option value={-1}>-- wählen --</option>
+                        {persons.map((p, i) => (<option key={i} value={i}>{p.name}</option>))}
+                      </select> */}
+                      <div className="flex flex-row items-center gap-1"><label className="text-xs">Person</label><div onClick={() => setPeriodPersonIndex(-1)} className={`cursor-pointer border-2 ${periodPersonIndex === -1 ? 'border-amber-500' : ''} rounded w-6 h-6 aspect-square items-center flex justify-center font-bold`}></div>{persons.map((p, i) => (<div onClick={() => setPeriodPersonIndex(i)} key={i} value={i} className={`cursor-pointer border-2 ${periodPersonIndex === i ? 'border-amber-500' : ''} rounded w-6 h-6 aspect-square items-center flex justify-center font-bold bg-${p.color}`}>{p.name.split("")[0]}</div>))}</div>
+
+                    </div>
+                    <div className="text-gray-600 text-sm">Klicke Datum, um zuweisen / entfernen</div>
+                  </div>
+                  <div className="mt-2">
+
+                    <div className="gap-1 grid grid-cols-10 mt-1 p-1 border rounded">
+                      {periodWeekday === -1 ? (
+                        // show holidays
+                        Object.values(periodHolidayMap || {}).sort((a, b) => (a.month - b.month) || (a.day - b.day)).map((h) => {
+                          const y = h.year; const m = h.month; const d = h.day; const key = `${y} - ${m} - ${d}`;
+                          const dt = new Date(y, m - 1, d);
+                          const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
+                          return (
+                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border border-gray-200 rounded-xl cursor-pointer" onClick={() => toggleAssignDate(dt)}>
+                              <div className="flex justify-between items-center w-full">
+                                <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
+                                <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                              </div>
+                              <div className="text-red-600 text-xs text-center">{h.name}</div>
+                              <div className={`flex items-center justify-center border-2 font-bold rounded w-6 h-6 aspect-square ${existing ? existing.color : 'transparent'}`}>{existing ? `${existing.name.split("")[0]}` : ''}</div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        getDatesForWeekday(periodYear, periodWeekday).map((dt) => {
+                          const y = dt.getFullYear();
+                          const m = dt.getMonth() + 1;
+                          const d = dt.getDate();
+                          const key = `${y}-${m}-${d}`;
+                          const holiday = periodHolidayMap[key];
+                          const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
+                          return (
+                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border border-gray-200 rounded-xl cursor-pointer" onClick={() => toggleAssignDate(dt)}>
+                              <div className="flex justify-between items-center w-full">
+                                <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
+                                <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                              </div>
+                              <div className={`flex items-center justify-center border-2 font-bold rounded w-6 h-6 aspect-square ${existing ? existing.color : 'transparent'}`}>{existing ? `${existing.name.split("")[0]}` : ''}</div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-2 border rounded">
+            <button onClick={() => setShowColorSetting(!showColorSetting)} className="font-semibold">App Farben</button>
+            <div className={`gap-2 grid grid-cols-3 mt-2 ${showColorSetting ? '' : 'hidden'}`}>
               {[
                 { id: 'holiday', label: 'Ferien' },
                 { id: 'vacation', label: 'Urlaub' },
@@ -391,10 +688,115 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
           }}>
             Download
           </button>
-        </div>
-      </div>
+        </div >
+      </div >
       {colorSelector}
     </>
+  );
+}
+
+function WorkdaysManager({ state, setState, persons, showColorSelector, showNewWorkday, setShowNewWorkday }) {
+  const workdays = (state?.DATA?.workdays) || [];
+  const [editIndex, setEditIndex] = useState(-1);
+  // use a single ISO date string for browser date input
+  const isoToday = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(isoToday);
+  const [color, setColor] = useState("bg-green-300");
+  const [name, setName] = useState("");
+  const [selectedPersonIndex, setSelectedPersonIndex] = useState(-1);
+  const [special, setSpecial] = useState(false);
+
+  const clearForm = () => {
+    setEditIndex(-1);
+    setDate(isoToday);
+    setColor("bg-green-300");
+    setName("");
+    setSpecial(false);
+    setShowNewWorkday(false);
+  };
+
+  const startEdit = (i) => {
+    const w = workdays[i];
+    if (!w) return;
+    setEditIndex(i);
+    // convert year/month/day to ISO date string
+    const mm = String(w.month).padStart(2, '0');
+    const dd = String(w.day).padStart(2, '0');
+    setDate(`${w.year}-${mm}-${dd}`);
+    setColor(w.color || "bg-green-300");
+    setName(w.name || "");
+    // try to match a person by name or color and adopt their index/color
+    const pIdx = persons.findIndex((p) => (p.name && w.name && p.name === w.name) || (p.color && w.color && (p.color === w.color || `bg-${p.color}` === w.color)));
+    setSelectedPersonIndex(pIdx >= 0 ? pIdx : -1);
+    if (pIdx >= 0 && persons[pIdx] && persons[pIdx].color) {
+      const pc = persons[pIdx].color;
+      setColor(pc.startsWith('bg-') ? pc : `bg-${pc}`);
+    }
+    setSpecial(!!w.special);
+    setShowNewWorkday(true);
+  };
+
+  const save = () => {
+    // date is YYYY-MM-DD
+    const [y, m, d] = (date || isoToday).split('-').map((s) => Number(s));
+    const newW = { year: y, month: m, day: d, color, name, special };
+    const newWorkdays = [...workdays];
+    if (editIndex >= 0 && editIndex < newWorkdays.length) newWorkdays[editIndex] = newW;
+    else newWorkdays.push(newW);
+    setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWorkdays } }));
+    clearForm();
+  };
+
+  const remove = (i) => {
+    const newWorkdays = workdays.filter((_, idx) => idx !== i);
+    setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWorkdays } }));
+    clearForm();
+  };
+
+  return (
+    <div className="mt-2">
+      {showNewWorkday && (
+        <div className="bg-green-50 p-2 border rounded">
+          <div className="flex items-center gap-2">
+            <input type="date" className="p-1 border rounded" value={date} onChange={(e) => setDate(e.target.value)} />
+            <div className="flex items-center gap-2">
+              <div className="mr-2">Person:</div>
+              <select value={selectedPersonIndex} onChange={(e) => {
+                const idx = Number(e.target.value);
+                setSelectedPersonIndex(idx);
+                if (idx >= 0 && persons[idx]) {
+                  setName(persons[idx].name);
+                  const pc = persons[idx].color || '';
+                  // ensure stored color is a bg-... class
+                  setColor(pc.startsWith('bg-') || pc.startsWith('border-') ? pc : (pc ? `bg-${pc}` : pc));
+                } else setName('');
+              }} className="p-1 border rounded">
+                <option value={-1}>-- eigener Name --</option>
+                {persons.map((p, i) => (<option key={i} value={i}>{p.name}</option>))}
+              </select>
+            </div>
+            {/* <input className="flex-1 p-1 border rounded" value={name} onChange={(e) => { setName(e.target.value); setSelectedPersonIndex(-1); }} placeholder="Name (oder wähle Person)" />
+            <input disabled className="p-1 border rounded w-36" value={color} /> */}
+            {/* <button onClick={async () => { const res = await showColorSelector({ top: 100, left: 100, selectedColor: color }); if (res) setColor(`bg-${res}`); }}>Farbe</button> */}
+            <label className="flex items-center gap-1"><input type="checkbox" checked={special} onChange={(e) => setSpecial(e.target.checked)} /> Spezial</label>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button onClick={save}>{editIndex >= 0 ? 'Update' : 'Speichern'}</button>
+            <button onClick={clearForm}>Abbrechen</button>
+          </div>
+        </div>
+      )}
+      <div className="mt-2">
+        {workdays.length === 0 && <div className="text-gray-500 text-xs">Keine Arbeitstage</div>}
+        {workdays.map((w, i) => (
+          <div key={i} className="flex items-center gap-2 py-1 border-b">
+            <div className="flex-1">{w.year}-{w.month}-{w.day} {w.name} <span className="text-gray-500 text-xs">{w.color}</span> {w.special ? '(Spezial)' : ''}</div>
+            <button onClick={() => startEdit(i)}>Edit</button>
+            <button onClick={() => remove(i)}>Löschen</button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 export function ColorSelector({ top = 0, left = 0, selectedColor, onResolve }) {
@@ -484,25 +886,7 @@ export default function Calendar() {
   const [shot, setShot] = useState({ shot: false, target: "calendar" });
   const [shotTarget, setShotTarget] = useState("calendar");
   const [year, setYear] = useState(new Date().getFullYear());
-  const [state, setState] = useState({
-    menu: {
-      active: "calendar",
-    },
-    DATA: {
-      workdays: [
-        { year: 2025, month: 1, day: 1, color: "bg-blue-300", name: "Dennis", special: true },
-        { year: 2025, month: 1, day: 11, color: "bg-blue-300", name: "Dennis", special: false },
-        { year: 2025, month: 1, day: 12, color: "bg-blue-300", name: "Dennis", special: false },
-        { year: 2025, month: 1, day: 18, color: "bg-green-300", name: "Christian", special: false },
-        { year: 2025, month: 1, day: 19, color: "bg-green-300", name: "Christian", special: false },
-        { year: 2025, month: 1, day: 25, color: "bg-blue-300", name: "Dennis", special: false },
-        { year: 2025, month: 1, day: 26, color: "bg-blue-300", name: "Dennis", special: false },
-        { year: 2025, month: 2, day: 1, color: "bg-blue-300", name: "Dennis", special: true },
-        { year: 2025, month: 2, day: 2, color: "bg-green-300", name: "Christian", special: false },
-      ],
-      persons: [],
-    },
-  });
+  const [state, setState] = useState({});
   const [colors, setColors] = useState({
     holidayBg: "bg-orange-500",
     holidayBorder: "border-orange-500",
@@ -546,6 +930,35 @@ export default function Calendar() {
     tryLoad();
   }, []);
 
+  // autosave on changes to state or colors (debounced, skip initial load)
+  const saveTimerRef = useRef(null);
+  const initialLoadedRef = useRef(false);
+  useEffect(() => {
+    // mark that initial load happened after first render
+    if (!initialLoadedRef.current) {
+      initialLoadedRef.current = true;
+      return;
+    }
+    // debounce saves
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const payload = { state, colors };
+      try {
+        if (window?.api?.saveData) {
+          await window.api.saveData(payload);
+        } else {
+          localStorage.setItem('247calender_data', JSON.stringify(payload));
+        }
+      } catch (e) {
+        // ignore save errors for now
+        console.error('Autosave failed', e);
+      }
+    }, 250);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [state, colors]);
+
   return (
     <>
       <div className="flex flex-col min-h-0 overflow-hidden">
@@ -555,7 +968,7 @@ export default function Calendar() {
               onClick={() => {
                 setState({ ...state, menu: { active: "calendar" } });
               }}
-              className={state.menu.active === "calendar" ? "!border-amber-500" : ""}
+              className={state?.menu?.active === "calendar" ? "!border-amber-500" : ""}
             >
               Kalender
             </button>
@@ -570,62 +983,36 @@ export default function Calendar() {
             </button>
           </div>
           <div
-            className={`flex border rounded items-center ${state.menu.active === "calendar" ? "opacity-100" : "opacity-30"
+            className={`flex border rounded items-center ${state?.menu?.active === "calendar" ? "opacity-100" : "opacity-30"
               }`}
           >
             <select
-              disabled={!state.menu.active === "calendar"}
+              disabled={!state?.menu?.active === "calendar"}
               className="mx-[2px]"
               value={shotTarget}
               onChange={(e) => setShotTarget(e.target.value)}
             >
-              <option selected={shotTarget === "calendar"} value="calendar">
-                Jahr
-              </option>
-              <option selected={shotTarget === "m-0"} value="m-0">
-                Januar
-              </option>
-              <option selected={shotTarget === "m-1"} value="m-1">
-                Februar
-              </option>
-              <option selected={shotTarget === "m-2"} value="m-2">
-                März
-              </option>
-              <option selected={shotTarget === "m-3"} value="m-3">
-                April
-              </option>
-              <option selected={shotTarget === "m-4"} value="m-4">
-                Mai
-              </option>
-              <option selected={shotTarget === "m-5"} value="m-5">
-                Juni
-              </option>
-              <option selected={shotTarget === "m-6"} value="m-6">
-                Juli
-              </option>
-              <option selected={shotTarget === "m-7"} value="m-7">
-                August
-              </option>
-              <option selected={shotTarget === "m-8"} value="m-8">
-                September
-              </option>
-              <option selected={shotTarget === "m-9"} value="m-9">
-                Oktober
-              </option>
-              <option selected={shotTarget === "m-10"} value="m-10">
-                November
-              </option>
-              <option selected={shotTarget === "m-11"} value="m-11">
-                Dezember
-              </option>
+              <option value="calendar">Jahr</option>
+              <option value="m-0">Januar</option>
+              <option value="m-1">Februar</option>
+              <option value="m-2">März</option>
+              <option value="m-3">April</option>
+              <option value="m-4">Mai</option>
+              <option value="m-5">Juni</option>
+              <option value="m-6">Juli</option>
+              <option value="m-7">August</option>
+              <option value="m-8">September</option>
+              <option value="m-9">Oktober</option>
+              <option value="m-10">November</option>
+              <option value="m-11">Dezember</option>
             </select>
             <button
               onClick={() => {
-                if (state.menu.active === "calendar") {
+                if (state?.menu?.active === "calendar") {
                   setShot({ shot: true, target: shotTarget });
                 }
               }}
-              disabled={!state.menu.active === "calendar"}
+              disabled={!state?.menu?.active === "calendar"}
             >
               Screenshot
             </button>
@@ -635,26 +1022,27 @@ export default function Calendar() {
               onClick={() => {
                 setState({ ...state, menu: { active: "settings" } });
               }}
-              className={state.menu.active === "settings" ? "!border-amber-500" : ""}
+              className={state?.menu?.active === "settings" ? "!border-amber-500" : ""}
             >
               Einstellungen
             </button>
           </div>
         </nav>
         <main className="flex min-h-0 overflow-hidden">
-          {state.menu.active === "calendar" && (
+          {state?.menu?.active === "calendar" && (
             <CalendarGrid
               colors={colors}
               shot={shot}
               setShot={setShot}
-              holidays={state.DATA.holidays}
-              vacations={state.DATA.vacations}
-              workdays={state.DATA.workdays}
+              holidays={state?.DATA?.holidays}
+              vacations={state?.DATA?.vacations}
+              persons={state?.DATA?.persons}
+              workdays={state?.DATA?.workdays}
               year={year}
               setYear={setYear}
             />
           )}
-          {state.menu.active === "settings" && (
+          {state?.menu?.active === "settings" && (
             <CalendarSettings colors={colors} setColors={setColors} state={state} setState={setState} />
           )}
         </main>
