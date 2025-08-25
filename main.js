@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -7,44 +7,9 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Config keys and filenames
-const CONFIG_FILENAME = '247calendar_config.json'
-const DEFAULT_DATA_BASENAME = '247calender_data.json'
-
-// Helper: path to config file inside app userData
-function getConfigPath() {
-  // app.getPath('userData') is available after app.whenReady, but calling here is safe
-  const userData = app.getPath ? app.getPath('userData') : path.join(process.env.HOME || '.', '.config', '247calendar')
-  return path.join(userData, CONFIG_FILENAME)
-}
-
-// Read config (if present) and return the configured data file path, or default under userData
-async function getDataFilePath() {
-  try {
-    const configPath = getConfigPath()
-    if (fs.existsSync(configPath)) {
-      const txt = await fs.promises.readFile(configPath, 'utf-8')
-      const cfg = JSON.parse(txt || '{}')
-      if (cfg && cfg.dataFile) return path.resolve(cfg.dataFile)
-    }
-  } catch (e) {
-    console.error('Failed to read config:', e.message)
-  }
-
-  // Default location in app userData
-  const userData = app.getPath ? app.getPath('userData') : path.join(process.env.HOME || '.', '.config', '247calendar')
-  // Ensure directory exists on-demand when writing
-  return path.join(userData, DEFAULT_DATA_BASENAME)
-}
-
-// Persist config with a given dataFile path
-async function setDataFilePath(newPath) {
-  const configPath = getConfigPath()
-  const cfg = { dataFile: path.resolve(newPath) }
-  await fs.promises.mkdir(path.dirname(configPath), { recursive: true })
-  await fs.promises.writeFile(configPath, JSON.stringify(cfg, null, 2), 'utf-8')
-  return cfg.dataFile
-}
+// Default DATA_FILE: keep the existing Windows path as a fallback, but
+// prefer the platform-appropriate userData location once the app is ready.
+let DATA_FILE = 'C:\\Users\\%USERNAME%\\Seafile\\Seafile\\Dateiablage\\247calender_data.json'
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -63,7 +28,7 @@ const createWindow = () => {
 // IPC handlers to persist data in the user's app data folder
 ipcMain.handle('load-data', async () => {
   try {
-    const p = await getDataFilePath()
+    const p = path.join(DATA_FILE)
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Loading data from ${p}`)
@@ -82,29 +47,9 @@ ipcMain.handle('load-data', async () => {
   }
 })
 
-// Expose current data file path to renderer
-ipcMain.handle('get-data-file', async () => {
-  try {
-    return { path: await getDataFilePath() }
-  } catch (e) {
-    return { error: e.message }
-  }
-})
-
-// Allow changing the data file path (persisted in config)
-ipcMain.handle('set-data-file', async (event, newPath) => {
-  try {
-    if (!newPath || typeof newPath !== 'string') throw new Error('invalid path')
-    const saved = await setDataFilePath(newPath)
-    return { ok: true, path: saved }
-  } catch (e) {
-    return { ok: false, error: e.message }
-  }
-})
-
 ipcMain.handle('save-data', async (event, data) => {
   try {
-    const p = await getDataFilePath()
+    const p = path.join(DATA_FILE)
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Saving data to ${p}`)
@@ -114,8 +59,38 @@ ipcMain.handle('save-data', async (event, data) => {
     return { ok: false, error: e.message }
   }
 })
+ipcMain.handle('get-data-file-path', async () => {
+  return DATA_FILE
+})
+ipcMain.handle('set-data-file-path', async (event, newPath) => {
+  DATA_FILE = newPath
+  return { ok: true }
+})
+ipcMain.handle('show-open-dialog-api', async (event, options) => {
+  // Allow the renderer to pass options (matches preload.cjs usage).
+  // Provide a sensible default if none supplied.
+  const opts = options || { properties: ['openFile'] }
+  const result = await dialog.showOpenDialog(opts)
+  // Return the first selected path or null
+  return (result && result.filePaths && result.filePaths[0]) || null
+})
 
 app.whenReady().then(() => {
+  // If we're not on Windows and the developer left the Windows example path,
+  // switch to the platform user data folder so data is stored in a sensible place.
+  try {
+    if (process.platform !== 'win32') {
+      const defaultPath = path.join(app.getPath('userData'), '247calender_data.json')
+      // Only override the hardcoded Windows example path
+      if (DATA_FILE && DATA_FILE.includes('C:\\Users\\%USERNAME%')) {
+        DATA_FILE = defaultPath
+      }
+    }
+  } catch (e) {
+    // ignore; keep existing DATA_FILE
+    console.warn('Could not set platform default DATA_FILE:', e?.message || e)
+  }
+
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

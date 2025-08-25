@@ -15,6 +15,27 @@ contextBridge.exposeInMainWorld('api', {
     } catch (e) {
       return { ok: false, error: e?.message || String(e) }
     }
+  },
+  getDataFilePath: async () => {
+    try {
+      return await ipcRenderer.invoke('get-data-file-path')
+    } catch (e) {
+      return { __error: e?.message || String(e) }
+    }
+  },
+  setDataFilePath: async (newPath) => {
+    try {
+      return await ipcRenderer.invoke('set-data-file-path', newPath)
+    } catch (e) {
+      return { __error: e?.message || String(e) }
+    }
+  },
+  showOpenDialogApi: async (options) => {
+    try {
+      return await ipcRenderer.invoke('show-open-dialog-api', options)
+    } catch (e) {
+      return { __error: e?.message || String(e) }
+    }
   }
 })
 

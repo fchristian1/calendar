@@ -1,0 +1,18 @@
+{
+  "state": {
+    "menu": {
+      "active": "settings"
+    }
+  },
+  "colors": {
+    "holidayBg": "bg-orange-500",
+    "holidayBorder": "border-orange-500",
+    "holidayText": "text-orange-500",
+    "vacationBg": "bg-yellow-500",
+    "vacationBorder": "border-yellow-500",
+    "vacationText": "text-yellow-500",
+    "attentionBg": "bg-red-500",
+    "attentionBorder": "border-red-500",
+    "attentionText": "text-red-500"
+  }
+}

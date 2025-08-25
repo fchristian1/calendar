@@ -217,6 +217,24 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   const [selectedColor, setSelectedColor] = useState(null);
   const [colorSelector, showColorSelector] = useColorSelector();
   const [showNewWorkday, setShowNewWorkday] = useState(false);
+  // path to the data file (loaded from main process via preload API)
+  const [dataFilePath, setDataFilePath] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      if (window?.api?.getDataFilePath) {
+        window.api.getDataFilePath().then((p) => {
+          if (mounted) setDataFilePath(p || '');
+        }).catch(() => {
+          /* ignore */
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
+    return () => { mounted = false };
+  }, []);
 
   // Header menu
   const [headerMenu, setHeaderMenu] = useState("");
@@ -719,47 +737,65 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
           </button> */}
           {headerMenu == "einstellungenBackup" && <div className="flex flex-col gap-2 p-2 border rounded">
             <h4>Einstellungen</h4>
-            <div className="flex gap-2">
-              <button onClick={async () => {
-                const data = localStorage.getItem('247calender_data');
-                if (!data) {
-                  alert('Keine Daten zum Herunterladen gefunden.');
-                  return;
-                }
-                const blob = new Blob([data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = '247calender_data.json';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}>
-                Download
-              </button>
-              {/* Import JSON file (works in browser and Electron) */}
-              <input id="import-file-input" type="file" accept="application/json" className="hidden" onChange={async (e) => {
-                const f = e.target.files && e.target.files[0];
-                if (!f) return;
-                try {
-                  const text = await f.text();
-                  const parsed = JSON.parse(text);
-                  if (parsed.state) setState((s) => ({ ...s, ...parsed.state }));
-                  if (parsed.colors) setColors((c) => ({ ...c, ...parsed.colors }));
-                  // also support legacy saved JSON which might be the payload itself
-                  if (!parsed.state && !parsed.colors) {
-                    // attempt to interpret file as the full payload
-                    if (parsed.DATA || parsed.menu) setState(parsed);
-                    if (parsed.holidayBg || parsed.holidayBorder) setColors(parsed);
+            <div className="flex flex-col gap-2">
+              <div>
+                <button onClick={async () => {
+                  try {
+                    // Use the preload API. It returns a Promise that resolves to the selected path or null.
+                    const newPath = await window?.api?.showOpenDialogApi?.({ properties: ['openFile'] });
+                    if (newPath) {
+                      await window?.api?.setDataFilePath?.(newPath);
+                      setDataFilePath(newPath);
+                    }
+                  } catch (err) {
+                    console.warn('Open dialog failed', err);
                   }
-                  alert('Daten erfolgreich importiert');
-                } catch (err) {
-                  alert('Import fehlgeschlagen: ' + (err?.message || String(err)));
-                } finally {
-                  // reset input so same file can be re-imported if needed
-                  e.target.value = '';
-                }
-              }} />
-              <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
+                }}>Speicherdatei wählen</button>
+                <span> Aktuell: {dataFilePath || 'nicht gesetzt'}</span>
+              </div>
+
+              <div>
+                <button onClick={async () => {
+                  const data = localStorage.getItem('247calender_data');
+                  if (!data) {
+                    alert('Keine Daten zum Herunterladen gefunden.');
+                    return;
+                  }
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = '247calender_data.json';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}>
+                  Download
+                </button>
+                {/* Import JSON file (works in browser and Electron) */}
+                <input id="import-file-input" type="file" accept="application/json" className="hidden" onChange={async (e) => {
+                  const f = e.target.files && e.target.files[0];
+                  if (!f) return;
+                  try {
+                    const text = await f.text();
+                    const parsed = JSON.parse(text);
+                    if (parsed.state) setState((s) => ({ ...s, ...parsed.state }));
+                    if (parsed.colors) setColors((c) => ({ ...c, ...parsed.colors }));
+                    // also support legacy saved JSON which might be the payload itself
+                    if (!parsed.state && !parsed.colors) {
+                      // attempt to interpret file as the full payload
+                      if (parsed.DATA || parsed.menu) setState(parsed);
+                      if (parsed.holidayBg || parsed.holidayBorder) setColors(parsed);
+                    }
+                    alert('Daten erfolgreich importiert');
+                  } catch (err) {
+                    alert('Import fehlgeschlagen: ' + (err?.message || String(err)));
+                  } finally {
+                    // reset input so same file can be re-imported if needed
+                    e.target.value = '';
+                  }
+                }} />
+                <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
+              </div>
             </div>
           </div>}
         </div >
