@@ -9,8 +9,11 @@
   "build": {
     "appId": "com.christian.247calendar",
     "productName": "247Calendar",
+    "directories": {
+      "output": "build_output"
+    },
     "files": [
-      "dist/**/*",
+      "dist/",
       "main.js",
       "preload.cjs"
     ],
