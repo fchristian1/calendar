@@ -15,9 +15,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "npm run i && npm run build && electron-forge start",
-    "package": "npm run i && npm run build && electron-forge package",
-    "make": "npm run i && npm run build && electron-forge make"
+    "start": "npm i && npm run build && electron-forge start",
+    "package": "npm i && npm run build && electron-forge package",
+    "make": "npm i && npm run build && electron-forge make"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.12",
