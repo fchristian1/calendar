@@ -18,6 +18,10 @@ let DATA_FILE = null
 function resolveDataFile() {
   if (DATA_FILE) return DATA_FILE
   try {
+    // On Windows prefer the user's Seafile 'Dateiablage' folder (uses homedir -> C:\Users\<User>)
+    if (process.platform === 'win32') {
+      return path.join(os.homedir(), 'Seafile', 'Seafile', 'Dateiablage', '247calender_data.json')
+    }
     if (app && app.isReady()) {
       return path.join(app.getPath('userData'), '247calender_data.json')
     }
