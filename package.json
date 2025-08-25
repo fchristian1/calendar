@@ -15,6 +15,7 @@
       "preload.cjs"
     ],
     "win": {
+      "icon": "icon.ico",
       "target": [
         "nsis",
         "zip"
