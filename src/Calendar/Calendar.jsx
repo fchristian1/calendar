@@ -218,6 +218,16 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   const [colorSelector, showColorSelector] = useColorSelector();
   const [showNewWorkday, setShowNewWorkday] = useState(false);
 
+  // Header menu
+  const [headerMenu, setHeaderMenu] = useState("");
+  const handleClickHeaderMenu = (menu) => {
+    if (headerMenu == "") {
+      setHeaderMenu(menu);
+    } else {
+      if (headerMenu == menu) setHeaderMenu("");
+      else setHeaderMenu(menu);
+    }
+  }
   // persons management
   const [showNewPerson, setShowNewPerson] = useState(false);
   const persons = (state?.DATA?.persons) || [];
@@ -230,7 +240,6 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
 
 
   // Color Management
-  const [showColorSetting, setShowColorSetting] = useState(false);
   const handleClickShowAllocationMenu = (menu) => {
     if (allocationMenu == "") {
       setAllocationMenu(menu);
@@ -456,8 +465,14 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     <>
       <div className="min-w-[800px]">
         <h2 className="font-bold">Kalender Einstellungen</h2>
+        <div>
+          <button className={headerMenu == "personen" ? 'active' : ''} onClick={() => handleClickHeaderMenu("personen")}>Personen</button>
+          <button className={headerMenu == "zuweisung" ? 'active' : ''} onClick={() => handleClickHeaderMenu("zuweisung")}>Zuweisung</button>
+          <button className={headerMenu == "appFarben" ? 'active' : ''} onClick={() => handleClickHeaderMenu("appFarben")}>App Farben</button>
+          <button className={headerMenu == "einstellungenBackup" ? 'active' : ''} onClick={() => handleClickHeaderMenu("einstellungenBackup")}>Einstellungen Backup</button>
+        </div>
         <div className="flex flex-col gap-2">
-          <div className="p-2 border rounded">
+          {headerMenu == "personen" && <div className="p-2 border rounded">
             <div className="flex justify-between">
               <h3 className="font-semibold">Personen</h3>
               <button onClick={() => setShowNewPerson(true)}>Neu</button>
@@ -489,12 +504,13 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                 </div>
               ))}
             </div>
-          </div>
-          <div>
+          </div>}
+          {headerMenu == "zuweisung" && <div>
             <div className="p-2 border rounded"><h3 className="font-semibold">Zuweisen von Personen</h3>
               <div className="mb-1">
-                <button onClick={() => handleClickShowAllocationMenu("current")}>Aktuelle zuweisung</button>
-                <button onClick={() => handleClickShowAllocationMenu("newPeriod")}>Periode</button>
+                <button className={allocationMenu == "current" ? 'active' : ''} onClick={() => handleClickShowAllocationMenu("current")}>Aktuelle zuweisung</button>
+                <button className={allocationMenu == "newPeriod" ? 'active' : ''} onClick={() => handleClickShowAllocationMenu("newPeriod")}>Periode</button>
+                <button className={allocationMenu == "personen" ? 'active' : ''} onClick={() => handleClickShowAllocationMenu("personen")}>Personen</button>
               </div>
               {allocationMenu == "current" && (
                 <div className="p-2 border rounded">
@@ -523,11 +539,9 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                     </div>
                     <div className="text-gray-600 text-sm">Klicke Tag, um zuweisen / entfernen</div>
                   </div>
-                  <div className="mt-2">
-                    <div className="gap-1 grid grid-cols-7 mb-1 font-medium text-xs">
+                  <div className="flex mt-2">
+                    <div className="gap-1 grid grid-cols-7 mb-1 font-medium">
                       {WEEKDAY_NAMES.map((wd) => (<div key={wd} className="text-center">{wd}</div>))}
-                    </div>
-                    <div className="gap-1 grid grid-cols-7">
                       {getDaysInMonth(currentYear, currentMonth).map((dt) => {
                         const y = dt.getFullYear();
                         const m = dt.getMonth() + 1;
@@ -536,7 +550,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                         const holiday = currentHolidayMap[key];
                         const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
                         return (
-                          <div key={key} onClick={() => toggleAssignCurrent(dt)} className={`p-1 border rounded h-20 cursor-pointer flex flex-col justify-between ${existing ? '' : ''}`}>
+                          <div key={key} onClick={() => toggleAssignCurrent(dt)} className={`p-1 aspect-square border rounded h-20 cursor-pointer flex flex-col justify-between ${existing ? '' : ''}`}>
                             <div className="flex justify-between items-center w-full">
                               <div className="text-xs">{d}</div>
                               <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
@@ -588,7 +602,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                           const dt = new Date(y, m - 1, d);
                           const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
                           return (
-                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border border-gray-200 rounded-xl cursor-pointer" onClick={() => toggleAssignDate(dt)}>
+                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border rounded cursor-pointer" onClick={() => toggleAssignDate(dt)}>
                               <div className="flex justify-between items-center w-full">
                                 <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
                                 <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
@@ -607,7 +621,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                           const holiday = periodHolidayMap[key];
                           const existing = (state?.DATA?.workdays || []).find((w) => w.year === y && w.month === m && w.day === d);
                           return (
-                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border border-gray-200 rounded-xl cursor-pointer" onClick={() => toggleAssignDate(dt)}>
+                            <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border rounded cursor-pointer" onClick={() => toggleAssignDate(dt)}>
                               <div className="flex justify-between items-center w-full">
                                 <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
                                 <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
@@ -621,12 +635,13 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                   </div>
                 </div>
               )}
+              {allocationMenu == "personen" && (<div className="p-2 border rounded">Test</div>)}
             </div>
-          </div>
+          </div>}
 
-          <div className="p-2 border rounded">
-            <button onClick={() => setShowColorSetting(!showColorSetting)} className="font-semibold">App Farben</button>
-            <div className={`gap-2 grid grid-cols-3 mt-2 ${showColorSetting ? '' : 'hidden'}`}>
+          {headerMenu == "appFarben" && <div className="p-2 border rounded">
+            <h4 className="font-semibold">App Farben</h4>
+            <div className={`gap-2 grid grid-cols-3 mt-2`}>
               {[
                 { id: 'holiday', label: 'Ferien' },
                 { id: 'vacation', label: 'Urlaub' },
@@ -675,7 +690,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
           {/* <button
             onClick={async () => {
               const payload = { state, colors };
@@ -702,7 +717,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
           >
             Speichern
           </button> */}
-          <div className="flex flex-col gap-2 p-2 border rounded">
+          {headerMenu == "einstellungenBackup" && <div className="flex flex-col gap-2 p-2 border rounded">
             <h4>Einstellungen</h4>
             <div className="flex gap-2">
               <button onClick={async () => {
@@ -746,7 +761,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
               }} />
               <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
             </div>
-          </div>
+          </div>}
         </div >
       </div >
       {colorSelector}
