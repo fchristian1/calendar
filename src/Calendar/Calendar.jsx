@@ -136,10 +136,10 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear })
                               const colorBorderClass = !inMonth
                                 ? " text-gray-400 "
                                 : isHoliday
-                                ? colors.holidayBorder + " border-2 "
-                                : isVacation
-                                ? colors.vacationBorder + " border-2 "
-                                : "" + (isWorkday ? " border-2 " : "");
+                                  ? colors.holidayBorder + " border-2 "
+                                  : isVacation
+                                    ? colors.vacationBorder + " border-2 "
+                                    : "" + (isWorkday ? " border-2 " : "");
                               return (
                                 <div
                                   key={di}
@@ -147,17 +147,16 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear })
                                     isHoliday
                                       ? holidays.find((h) => h.year === year && h.month === m && h.day === d)?.name
                                       : isVacation
-                                      ? vacations.find(
+                                        ? vacations.find(
                                           (v) => v.year === year && v.month === m && d >= v.firstDay && d <= v.lastDay
                                         )?.name
-                                      : ""
+                                        : ""
                                   }
                                   className={`border rounded ${cellSize} text-end flex text-xs font-bold ${colorBgClass} ${colorBorderClass}`}
                                 >
                                   <div
-                                    className={`flex items-end justify-end h-full w-full  rounded ${
-                                      inMonth ? colorBorderSpecialClass : ""
-                                    }`}
+                                    className={`flex items-end justify-end h-full w-full  rounded ${inMonth ? colorBorderSpecialClass : ""
+                                      }`}
                                   >
                                     <div
                                       className={`${inMonth ? "bg-white" : ""} rounded h-4 aspect-square text-center`}
@@ -232,6 +231,21 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
         <div className="flex gap-2">
           <div className="h-4 aspect-square text-nowrap">{selectedColor ?? "null"}</div>
           <button onClick={handleClickShowSelector}>Sel</button>
+          <button
+            onClick={async () => {
+              // save current settings and data to disk via preload API
+              if (window?.api?.saveData) {
+                const payload = { state, colors };
+                const res = await window.api.saveData(payload);
+                if (!res || !res.ok) alert('Speichern fehlgeschlagen: ' + (res?.error || 'unknown'));
+                else alert('Einstellungen gespeichert');
+              } else {
+                alert('Save API nicht verfügbar');
+              }
+            }}
+          >
+            Speichern
+          </button>
         </div>
       </div>
       {colorSelector}
@@ -353,6 +367,24 @@ export default function Calendar() {
     attentionText: "text-red-500",
   });
 
+  // Load saved data on mount (Electron environment)
+  useEffect(() => {
+    const tryLoad = async () => {
+      try {
+        if (window?.api?.loadData) {
+          const data = await window.api.loadData();
+          if (data && !data.__error) {
+            if (data.state) setState((s) => ({ ...s, ...data.state }));
+            if (data.colors) setColors((c) => ({ ...c, ...data.colors }));
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    tryLoad();
+  }, []);
+
   return (
     <>
       <div className="flex flex-col min-h-0 overflow-hidden">
@@ -377,9 +409,8 @@ export default function Calendar() {
             </button>
           </div>
           <div
-            className={`flex border rounded items-center ${
-              state.menu.active === "calendar" ? "opacity-100" : "opacity-30"
-            }`}
+            className={`flex border rounded items-center ${state.menu.active === "calendar" ? "opacity-100" : "opacity-30"
+              }`}
           >
             <select
               disabled={!state.menu.active === "calendar"}
