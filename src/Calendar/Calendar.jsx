@@ -127,7 +127,7 @@ export function CalendarGrid({ colors, workdays, shot, setShot, year, setYear, p
                               const isHoliday = holidaySet.has(key);
                               const isVacation = vacationSet.has(key);
                               const isWorkday = workdaysSet.has(key);
-                              const workdayObj = workdays.find((w) => w.year === year && w.month === m && w.day === d);
+                              const workdayObj = workdays?.find((w) => w.year === year && w.month === m && w.day === d);
                               const isSpecialWorkday = !!workdayObj && workdayObj.special;
                               const colorBorderSpecialClass = isSpecialWorkday
                                 ? " border-2 " + colors.attentionBorder
@@ -308,7 +308,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     const m = dt.getMonth() + 1;
     const d = dt.getDate();
     const workdays = (state?.DATA?.workdays) || [];
-    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    const idx = workdays?.findIndex((w) => w.year === y && w.month === m && w.day === d);
     // if a person is selected, assign/update to that person; else toggle removal
     if (periodPersonIndex >= 0 && persons[periodPersonIndex]) {
       const person = persons[periodPersonIndex];
@@ -328,7 +328,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     } else {
       // no person selected -> toggle removal if exists
       if (idx >= 0) {
-        const newWork = workdays.filter((_, i) => i !== idx);
+        const newWork = workdays?.filter((_, i) => i !== idx);
         setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
       }
     }
@@ -350,7 +350,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     const m = dt.getMonth() + 1;
     const d = dt.getDate();
     const workdays = (state?.DATA?.workdays) || [];
-    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    const idx = workdays?.findIndex((w) => w.year === y && w.month === m && w.day === d);
     if (currentPersonIndex >= 0 && persons[currentPersonIndex]) {
       const person = persons[currentPersonIndex];
       const name = person.name || "";
@@ -366,7 +366,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
       }
     } else {
       if (idx >= 0) {
-        const newWork = workdays.filter((_, i) => i !== idx);
+        const newWork = workdays?.filter((_, i) => i !== idx);
         setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWork } }));
       }
     }
@@ -377,7 +377,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
     const m = dt.getMonth() + 1;
     const d = dt.getDate();
     const workdays = (state?.DATA?.workdays) || [];
-    const idx = workdays.findIndex((w) => w.year === y && w.month === m && w.day === d);
+    const idx = workdays?.findIndex((w) => w.year === y && w.month === m && w.day === d);
     if (idx >= 0) {
       const newWork = [...workdays];
       newWork[idx] = { ...newWork[idx], special: !newWork[idx].special };
@@ -741,14 +741,14 @@ function WorkdaysManager({ state, setState, persons, showColorSelector, showNewW
     const [y, m, d] = (date || isoToday).split('-').map((s) => Number(s));
     const newW = { year: y, month: m, day: d, color, name, special };
     const newWorkdays = [...workdays];
-    if (editIndex >= 0 && editIndex < newWorkdays.length) newWorkdays[editIndex] = newW;
-    else newWorkdays.push(newW);
+    if (editIndex >= 0 && editIndex < newworkdays?.length) newWorkdays[editIndex] = newW;
+    else newworkdays?.push(newW);
     setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWorkdays } }));
     clearForm();
   };
 
   const remove = (i) => {
-    const newWorkdays = workdays.filter((_, idx) => idx !== i);
+    const newWorkdays = workdays?.filter((_, idx) => idx !== i);
     setState((s) => ({ ...s, DATA: { ...s.DATA, workdays: newWorkdays } }));
     clearForm();
   };
@@ -787,8 +787,8 @@ function WorkdaysManager({ state, setState, persons, showColorSelector, showNewW
         </div>
       )}
       <div className="mt-2">
-        {workdays.length === 0 && <div className="text-gray-500 text-xs">Keine Arbeitstage</div>}
-        {workdays.map((w, i) => (
+        {workdays?.length === 0 && <div className="text-gray-500 text-xs">Keine Arbeitstage</div>}
+        {workdays?.map((w, i) => (
           <div key={i} className="flex items-center gap-2 py-1 border-b">
             <div className="flex-1">{w.year}-{w.month}-{w.day} {w.name} <span className="text-gray-500 text-xs">{w.color}</span> {w.special ? '(Spezial)' : ''}</div>
             <button onClick={() => startEdit(i)}>Edit</button>
