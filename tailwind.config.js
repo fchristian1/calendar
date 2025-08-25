@@ -2,7 +2,6 @@
 import { getTailwindColors } from "./src/Calendar/dates.js";
 
 function buildSafelist() {
-  console.log("test");
   const { tags, gradations, colors } = getTailwindColors();
 
   const shades = colors.filter(

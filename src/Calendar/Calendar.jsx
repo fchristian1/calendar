@@ -219,28 +219,157 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   const [selectedColor, setSelectedColor] = useState(null);
   const [colorSelector, showColorSelector] = useColorSelector();
 
+  // persons management
+  const [showNewPerson, setShowNewPerson] = useState(false);
+  const persons = (state?.DATA?.persons) || [];
+  const [editIndex, setEditIndex] = useState(-1);
+  const [personName, setPersonName] = useState("");
+  const [personColor, setPersonColor] = useState("");
+
   const handleClickShowSelector = async () => {
-    // pass numeric coordinates (px will be appended in the selector)
     const result = await showColorSelector({ top: 100, left: 100, selectedColor });
     setSelectedColor(result);
   };
+
+  const startEdit = (i) => {
+    const p = persons[i];
+    setShowNewPerson(true);
+    setEditIndex(i);
+    setPersonName(p?.name || "");
+    setPersonColor(p?.color || "");
+  };
+
+  const clearForm = () => {
+    setShowNewPerson(false);
+    setEditIndex(-1);
+    setPersonName("");
+    setPersonColor("");
+
+  };
+
+  const savePerson = () => {
+    const newPerson = { name: personName, color: personColor };
+    const newPersons = [...persons];
+    if (editIndex >= 0 && editIndex < newPersons.length) newPersons[editIndex] = newPerson;
+    else newPersons.push(newPerson);
+    setState((s) => ({ ...s, DATA: { ...s.DATA, persons: newPersons } }));
+    clearForm();
+  };
+
+  const deletePerson = (i) => {
+    const newPersons = persons.filter((_, idx) => idx !== i);
+    setState((s) => ({ ...s, DATA: { ...s.DATA, persons: newPersons } }));
+    clearForm();
+  };
+
   return (
     <>
       <div>
         <h2 className="font-bold">Kalender Einstellungen</h2>
-        <div className="flex gap-2">
-          <div className="h-4 aspect-square text-nowrap">{selectedColor ?? "null"}</div>
-          <button onClick={handleClickShowSelector}>Sel</button>
+        <div className="flex flex-col gap-2">
+          <div className="p-2 border rounded">
+            <div className="flex justify-between">
+              <h3 className="font-semibold">Personen</h3>
+              <button onClick={() => setShowNewPerson(true)}>Neu</button>
+            </div>
+            {showNewPerson && <div className="flex flex-col items-center gap-2 bg-green-100 mt-1 p-1 border rounded">
+              <div>
+                <input className="bg-white p-1 border rounded" placeholder="Name" value={personName} onChange={(e) => setPersonName(e.target.value)} />
+                <input disabled className="bg-white" placeholder="Auswählen -->" value={personColor} onChange={(e) => setPersonColor(e.target.value)} />
+                <button onClick={async () => {
+                  const res = await showColorSelector({ top: 100, left: 100, selectedColor: personColor });
+                  if (res) setPersonColor(res);
+                }}>Farbe</button>
+              </div>
+              <div className="flex flex-row gap-2">
+                <button onClick={savePerson}>{editIndex >= 0 ? 'Update' : 'Neu'}</button>
+                <button onClick={clearForm}>Abbrechen</button>
+              </div>
+            </div>}
+            <div className="mt-1 p-1 border rounded">
+              {persons.length === 0 && <div className="text-gray-500 text-xs">Keine Personen</div>}
+              {persons.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 py-1 border-b">
+                  <div className="flex-1">{p.name} <span className="text-gray-500 text-xs">{p.color}</span></div>
+                  <button onClick={() => startEdit(i)}>Edit</button>
+                  <button onClick={() => deletePerson(i)}>Löschen</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-2 p-2 border rounded">
+            <h3 className="font-semibold">App Farben</h3>
+            <div className="gap-2 grid grid-cols-3 mt-2">
+              {[
+                { id: 'holiday', label: 'Ferien' },
+                { id: 'vacation', label: 'Urlaub' },
+                { id: 'attention', label: 'Achtung' },
+              ].map((grp) => (
+                <div key={grp.id} className="p-2 border rounded">
+                  <div className="font-medium">{grp.label}</div>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">Hintergrund</div>
+                      <button
+                        onClick={async () => {
+                          const res = await showColorSelector({ top: 100, left: 100, selectedColor: colors[`${grp.id}Bg`] });
+                          if (res) setColors((c) => ({ ...c, [`${grp.id}Bg`]: `bg-${res}` }));
+                        }}
+                      >
+                        Wählen
+                      </button>
+                      <div title={colors[`${grp.id}Bg`]} className={`w-6 h-6 rounded ${colors[`${grp.id}Bg`]}`}></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">Rand</div>
+                      <button
+                        onClick={async () => {
+                          const res = await showColorSelector({ top: 100, left: 100, selectedColor: colors[`${grp.id}Border`] });
+                          if (res) setColors((c) => ({ ...c, [`${grp.id}Border`]: `border-${res}` }));
+                        }}
+                      >
+                        Wählen
+                      </button>
+                      <div title={colors[`${grp.id}Border`]} className={`w-6 h-6 rounded border-2 ${colors[`${grp.id}Border`]}`}></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">Text</div>
+                      <button
+                        onClick={async () => {
+                          const res = await showColorSelector({ top: 100, left: 100, selectedColor: colors[`${grp.id}Text`] });
+                          if (res) setColors((c) => ({ ...c, [`${grp.id}Text`]: `text-${res}` }));
+                        }}
+                      >
+                        Wählen
+                      </button>
+                      <div title={colors[`${grp.id}Text`]} className={`${colors[`${grp.id}Text`]} h-6 w-6 text-sm`}>Aa</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           <button
             onClick={async () => {
-              // save current settings and data to disk via preload API
+              const payload = { state, colors };
               if (window?.api?.saveData) {
-                const payload = { state, colors };
                 const res = await window.api.saveData(payload);
                 if (!res || !res.ok) alert('Speichern fehlgeschlagen: ' + (res?.error || 'unknown'));
                 else alert('Einstellungen gespeichert');
-              } else {
-                alert('Save API nicht verfügbar');
+                return;
+              }
+              try {
+                localStorage.setItem('247calender_data', JSON.stringify(payload));
+                // const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                // const url = URL.createObjectURL(blob);
+                // const a = document.createElement('a');
+                // a.href = url;
+                // a.download = '247calender_data.json';
+                // a.click();
+                // URL.revokeObjectURL(url);
+                // alert('Einstellungen lokal gespeichert (localStorage) und JSON-Download erstellt');
+              } catch (e) {
+                alert('Speichern nicht möglich: ' + e.message);
               }
             }}
           >
@@ -295,7 +424,8 @@ export function ColorSelector({ top = 0, left = 0, selectedColor, onResolve }) {
       <div className="grid grid-rows-10">
         {getTailwindColors().gradations.map((g) => {
           return (
-            <div key={g} className="grid grid-cols-22">
+            <div key={g} className="items-center grid grid-cols-23">
+              <div>{g}</div>
               {getTailwindColors().colors.map((colorData) => {
                 return (
                   <div
@@ -303,6 +433,7 @@ export function ColorSelector({ top = 0, left = 0, selectedColor, onResolve }) {
                       onResolve(`${colorData.name}-${g}`);
                     }}
                     key={colorData.name}
+                    title={colorData.de + " (" + colorData.name + ")"}
                     className={`cursor-pointer h-4 w-4 border bg-${colorData.name}-${g}`}
                   ></div>
                 );
@@ -353,6 +484,7 @@ export default function Calendar() {
         { year: 2025, month: 2, day: 1, color: "bg-blue-300", name: "Dennis", special: true },
         { year: 2025, month: 2, day: 2, color: "bg-green-300", name: "Christian", special: false },
       ],
+      persons: [],
     },
   });
   const [colors, setColors] = useState({
@@ -371,15 +503,28 @@ export default function Calendar() {
   useEffect(() => {
     const tryLoad = async () => {
       try {
+        // prefer Electron preload API
         if (window?.api?.loadData) {
           const data = await window.api.loadData();
           if (data && !data.__error) {
             if (data.state) setState((s) => ({ ...s, ...data.state }));
             if (data.colors) setColors((c) => ({ ...c, ...data.colors }));
+            return;
           }
         }
+        // fallback: try localStorage (useful in browser / dev)
+        try {
+          const raw = localStorage.getItem('247calender_data');
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (data.state) setState((s) => ({ ...s, ...data.state }));
+            if (data.colors) setColors((c) => ({ ...c, ...data.colors }));
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
       } catch (e) {
-        // ignore
+        // ignore errors
       }
     };
     tryLoad();
