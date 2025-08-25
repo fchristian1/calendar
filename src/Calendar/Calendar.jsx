@@ -672,22 +672,49 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
           >
             Speichern
           </button>
-          <button onClick={async () => {
-            const data = localStorage.getItem('247calender_data');
-            if (!data) {
-              alert('Keine Daten zum Herunterladen gefunden.');
-              return;
-            }
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = '247calender_data.json';
-            a.click();
-            URL.revokeObjectURL(url);
-          }}>
-            Download
-          </button>
+          <div className="flex gap-2">
+            <button onClick={async () => {
+              const data = localStorage.getItem('247calender_data');
+              if (!data) {
+                alert('Keine Daten zum Herunterladen gefunden.');
+                return;
+              }
+              const blob = new Blob([data], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = '247calender_data.json';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
+              Download
+            </button>
+
+            {/* Import JSON file (works in browser and Electron) */}
+            <input id="import-file-input" type="file" accept="application/json" className="hidden" onChange={async (e) => {
+              const f = e.target.files && e.target.files[0];
+              if (!f) return;
+              try {
+                const text = await f.text();
+                const parsed = JSON.parse(text);
+                if (parsed.state) setState((s) => ({ ...s, ...parsed.state }));
+                if (parsed.colors) setColors((c) => ({ ...c, ...parsed.colors }));
+                // also support legacy saved JSON which might be the payload itself
+                if (!parsed.state && !parsed.colors) {
+                  // attempt to interpret file as the full payload
+                  if (parsed.DATA || parsed.menu) setState(parsed);
+                  if (parsed.holidayBg || parsed.holidayBorder) setColors(parsed);
+                }
+                alert('Daten erfolgreich importiert');
+              } catch (err) {
+                alert('Import fehlgeschlagen: ' + (err?.message || String(err)));
+              } finally {
+                // reset input so same file can be re-imported if needed
+                e.target.value = '';
+              }
+            }} />
+            <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
+          </div>
         </div >
       </div >
       {colorSelector}

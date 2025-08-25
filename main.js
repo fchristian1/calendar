@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DATA_FILE = '247calender_data.json'
+const DATA_FILE = 'C:\\Users\\User\\Seafile\\Seafile\\Dateiablage\\247calender_data.json'
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -26,7 +26,7 @@ const createWindow = () => {
 // IPC handlers to persist data in the user's app data folder
 ipcMain.handle('load-data', async () => {
   try {
-    const p = path.join(app.getPath('userData'), DATA_FILE)
+    const p = path.join(DATA_FILE)
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Loading data from ${p}`)
@@ -47,7 +47,7 @@ ipcMain.handle('load-data', async () => {
 
 ipcMain.handle('save-data', async (event, data) => {
   try {
-    const p = path.join(app.getPath('userData'), DATA_FILE)
+    const p = path.join(DATA_FILE)
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Saving data to ${p}`)
