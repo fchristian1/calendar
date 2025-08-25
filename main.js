@@ -32,6 +32,35 @@ function resolveDataFile() {
   return path.join(os.homedir(), '247calender_data.json')
 }
 
+async function readPersistedConfig() {
+  try {
+    if (!app || !app.isReady()) return null
+    const cfgPath = path.join(app.getPath('userData'), '247calendar-config.json')
+    if (!fs.existsSync(cfgPath)) return null
+    const raw = await fs.promises.readFile(cfgPath, 'utf-8')
+    try {
+      return JSON.parse(raw)
+    } catch (e) {
+      return null
+    }
+  } catch (e) {
+    return null
+  }
+}
+
+async function writePersistedConfig(cfg) {
+  try {
+    const cfgDir = app && app.isReady() ? app.getPath('userData') : os.homedir()
+    const cfgPath = path.join(cfgDir, '247calendar-config.json')
+    await fs.promises.mkdir(path.dirname(cfgPath), { recursive: true })
+    await fs.promises.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf-8')
+    return true
+  } catch (e) {
+    console.warn('Failed to write config:', e?.message || e)
+    return false
+  }
+}
+
 const createWindow = () => {
   const win = new BrowserWindow({
     show: false, // Fenster nicht sofort zeigen
@@ -85,6 +114,11 @@ ipcMain.handle('get-data-file-path', async () => {
 })
 ipcMain.handle('set-data-file-path', async (event, newPath) => {
   DATA_FILE = newPath
+  try {
+    await writePersistedConfig({ DATA_FILE: newPath })
+  } catch (e) {
+    console.warn('Failed to persist DATA_FILE choice:', e?.message || e)
+  }
   return { ok: true }
 })
 ipcMain.handle('show-open-dialog-api', async (event, options) => {
@@ -96,11 +130,17 @@ ipcMain.handle('show-open-dialog-api', async (event, options) => {
   return (result && result.filePaths && result.filePaths[0]) || null
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
 
   // Ensure DATA_FILE is resolved now that app is ready.
   try {
-    DATA_FILE = resolveDataFile()
+    // Try to load persisted config first
+    const persisted = await readPersistedConfig().catch(() => null)
+    if (persisted && persisted.DATA_FILE) {
+      DATA_FILE = persisted.DATA_FILE
+    } else {
+      DATA_FILE = resolveDataFile()
+    }
   } catch (e) {
     console.warn('Could not initialize DATA_FILE:', e?.message || e)
   }
