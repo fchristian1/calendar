@@ -571,7 +571,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                           <div key={key} onClick={() => toggleAssignCurrent(dt)} className={`p-1 aspect-square border rounded h-20 cursor-pointer flex flex-col justify-between ${existing ? '' : ''}`}>
                             <div className="flex justify-between items-center w-full">
                               <div className="text-xs">{d}</div>
-                              <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                              <input title="Spezial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
                             </div>
                             <div className="text-red-600 text-xs text-center">{holiday ? holiday.name : ''}</div>
                             <div className="flex justify-center">
@@ -623,7 +623,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                             <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border rounded cursor-pointer" onClick={() => toggleAssignDate(dt)}>
                               <div className="flex justify-between items-center w-full">
                                 <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
-                                <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                                <input title="Spezial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
                               </div>
                               <div className="text-red-600 text-xs text-center">{h.name}</div>
                               <div className={`flex items-center justify-center border-2 font-bold rounded w-6 h-6 aspect-square ${existing ? existing.color : 'transparent'}`}>{existing ? `${existing.name.split("")[0]}` : ''}</div>
@@ -642,7 +642,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                             <div key={key} className="flex flex-col items-center gap-2 hover:bg-gray-100 py-1 border rounded cursor-pointer" onClick={() => toggleAssignDate(dt)}>
                               <div className="flex justify-between items-center w-full">
                                 <div>{String(d).padStart(2, '0')}.{String(m).padStart(2, '0')}.</div>
-                                <input title="Spacial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
+                                <input title="Spezial!" type="checkbox" checked={!!existing?.special} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); toggleSpecialDate(dt); }} />
                               </div>
                               <div className={`flex items-center justify-center border-2 font-bold rounded w-6 h-6 aspect-square ${existing ? existing.color : 'transparent'}`}>{existing ? `${existing.name.split("")[0]}` : ''}</div>
                             </div>
