@@ -253,7 +253,8 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
 
   // current allocation (month view) state
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); // 0-11
+  // default to January so the workdays overview starts at the beginning of the year
+  const [currentMonth, setCurrentMonth] = useState(0); // 0-11 (0 = January)
   const [currentPersonIndex, setCurrentPersonIndex] = useState(-1);
   const [currentHolidayMap, setCurrentHolidayMap] = useState({});
 
@@ -406,11 +407,40 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   };
 
   const savePerson = () => {
+    personColor == "" && alert("keine farbe gewählt");
+    if (personColor == "") return;
+    personName == "" && alert("kein Name gewählt");
+    if (personName == "") return;
     const newPerson = { name: personName, color: personColor };
     const newPersons = [...persons];
-    if (editIndex >= 0 && editIndex < newPersons.length) newPersons[editIndex] = newPerson;
-    else newPersons.push(newPerson);
-    setState((s) => ({ ...s, DATA: { ...s.DATA, persons: newPersons } }));
+    let oldPerson = null;
+    if (editIndex >= 0 && editIndex < newPersons.length) {
+      oldPerson = newPersons[editIndex];
+      newPersons[editIndex] = newPerson;
+    } else {
+      newPersons.push(newPerson);
+    }
+
+    // If we're editing an existing person and the name or color changed,
+    // update existing workdays that belong to that person (match by name or by stored color).
+    const normalizeColor = (c) => (c ? (c.startsWith('bg-') ? c : `bg-${c}`) : null);
+    let newWorkdays = (state?.DATA?.workdays) || [];
+    if (oldPerson) {
+      const oldName = oldPerson.name || '';
+      const newName = newPerson.name || '';
+      const oldColor = normalizeColor(oldPerson.color);
+      const newColor = normalizeColor(newPerson.color);
+      if ((oldName && oldName !== newName) || (oldColor && oldColor !== newColor)) {
+        newWorkdays = newWorkdays.map((w) => {
+          if ((oldName && w.name === oldName) || (oldColor && w.color === oldColor)) {
+            return { ...w, name: newName || w.name, color: newColor || w.color };
+          }
+          return w;
+        });
+      }
+    }
+
+    setState((s) => ({ ...s, DATA: { ...s.DATA, persons: newPersons, workdays: newWorkdays } }));
     clearForm();
   };
 
@@ -438,7 +468,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                   const res = await showColorSelector({ top: 100, left: 100, selectedColor: personColor });
                   if (res) setPersonColor(res);
                 }}>Farbe</button>
-                <div className={`h-6 aspect-square border-2 bg-${personColor || 'bg-gray-200'} rounded`}></div>
+                <div className={`h-6 aspect-square border-2 bg-${personColor == "" ? 'white' : personColor} rounded items-center flex justify-center`}><span title="Eine Farbe aussuchen">{personColor == "" ? '🎨' : ""}</span></div>
                 <input className="bg-white p-1 border rounded" placeholder="Name" value={personName} onChange={(e) => setPersonName(e.target.value)} />
               </div>
               <div className="flex flex-row gap-2">
@@ -646,7 +676,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
               ))}
             </div>
           </div>
-          <button
+          {/* <button
             onClick={async () => {
               const payload = { state, colors };
               if (window?.api?.saveData) {
@@ -671,49 +701,51 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
             }}
           >
             Speichern
-          </button>
-          <div className="flex gap-2">
-            <button onClick={async () => {
-              const data = localStorage.getItem('247calender_data');
-              if (!data) {
-                alert('Keine Daten zum Herunterladen gefunden.');
-                return;
-              }
-              const blob = new Blob([data], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = '247calender_data.json';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}>
-              Download
-            </button>
-
-            {/* Import JSON file (works in browser and Electron) */}
-            <input id="import-file-input" type="file" accept="application/json" className="hidden" onChange={async (e) => {
-              const f = e.target.files && e.target.files[0];
-              if (!f) return;
-              try {
-                const text = await f.text();
-                const parsed = JSON.parse(text);
-                if (parsed.state) setState((s) => ({ ...s, ...parsed.state }));
-                if (parsed.colors) setColors((c) => ({ ...c, ...parsed.colors }));
-                // also support legacy saved JSON which might be the payload itself
-                if (!parsed.state && !parsed.colors) {
-                  // attempt to interpret file as the full payload
-                  if (parsed.DATA || parsed.menu) setState(parsed);
-                  if (parsed.holidayBg || parsed.holidayBorder) setColors(parsed);
+          </button> */}
+          <div className="flex flex-col gap-2 p-2 border rounded">
+            <h4>Einstellungen</h4>
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                const data = localStorage.getItem('247calender_data');
+                if (!data) {
+                  alert('Keine Daten zum Herunterladen gefunden.');
+                  return;
                 }
-                alert('Daten erfolgreich importiert');
-              } catch (err) {
-                alert('Import fehlgeschlagen: ' + (err?.message || String(err)));
-              } finally {
-                // reset input so same file can be re-imported if needed
-                e.target.value = '';
-              }
-            }} />
-            <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '247calender_data.json';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>
+                Download
+              </button>
+              {/* Import JSON file (works in browser and Electron) */}
+              <input id="import-file-input" type="file" accept="application/json" className="hidden" onChange={async (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                try {
+                  const text = await f.text();
+                  const parsed = JSON.parse(text);
+                  if (parsed.state) setState((s) => ({ ...s, ...parsed.state }));
+                  if (parsed.colors) setColors((c) => ({ ...c, ...parsed.colors }));
+                  // also support legacy saved JSON which might be the payload itself
+                  if (!parsed.state && !parsed.colors) {
+                    // attempt to interpret file as the full payload
+                    if (parsed.DATA || parsed.menu) setState(parsed);
+                    if (parsed.holidayBg || parsed.holidayBorder) setColors(parsed);
+                  }
+                  alert('Daten erfolgreich importiert');
+                } catch (err) {
+                  alert('Import fehlgeschlagen: ' + (err?.message || String(err)));
+                } finally {
+                  // reset input so same file can be re-imported if needed
+                  e.target.value = '';
+                }
+              }} />
+              <button onClick={() => document.getElementById('import-file-input')?.click()}>Import</button>
+            </div>
           </div>
         </div >
       </div >
