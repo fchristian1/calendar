@@ -1,5 +1,7 @@
 {
-  "name": "calendar",
+  "name": "247calendar",
+  "author": "Christian",
+  "description": "A simple calendar app built with Electron, React, and Tailwind CSS.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
