@@ -285,6 +285,10 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
   const [currentPersonIndex, setCurrentPersonIndex] = useState(-1);
   const [currentHolidayMap, setCurrentHolidayMap] = useState({});
 
+  // prepare days for current month view and compute leading weekday offset
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const currentMonthFirstWeekdayOffset = daysInMonth.length > 0 ? ((daysInMonth[0].getDay() + 6) % 7) : 0; // Monday=0
+
   useEffect(() => {
     // build holiday map for the selected year
     try {
@@ -560,7 +564,11 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                   <div className="flex mt-2">
                     <div className="gap-1 grid grid-cols-7 mb-1 font-medium">
                       {WEEKDAY_NAMES.map((wd) => (<div key={wd} className="text-center">{wd}</div>))}
-                      {getDaysInMonth(currentYear, currentMonth).map((dt) => {
+                      {/* Insert leading empty cells so the 1st of month aligns to the correct weekday */}
+                      {Array.from({ length: currentMonthFirstWeekdayOffset }).map((_, i) => (
+                        <div key={`pad-${i}`} className="bg-gray-50 p-1 border rounded h-20 aspect-square" />
+                      ))}
+                      {daysInMonth.map((dt) => {
                         const y = dt.getFullYear();
                         const m = dt.getMonth() + 1;
                         const d = dt.getDate();
