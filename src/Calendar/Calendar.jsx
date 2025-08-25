@@ -282,7 +282,7 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
                 }}>Farbe</button>
               </div>
               <div className="flex flex-row gap-2">
-                <button onClick={savePerson}>{editIndex >= 0 ? 'Update' : 'Neu'}</button>
+                <button onClick={savePerson}>{editIndex >= 0 ? 'Update' : 'Speichern'}</button>
                 <button onClick={clearForm}>Abbrechen</button>
               </div>
             </div>}
@@ -374,6 +374,22 @@ export function CalendarSettings({ colors, setColors, state, setState }) {
             }}
           >
             Speichern
+          </button>
+          <button onClick={async () => {
+            const data = localStorage.getItem('247calender_data');
+            if (!data) {
+              alert('Keine Daten zum Herunterladen gefunden.');
+              return;
+            }
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '247calender_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}>
+            Download
           </button>
         </div>
       </div>
