@@ -1029,7 +1029,7 @@ export default function Calendar() {
           </div>
         </nav>
         <main className="flex min-h-0 overflow-hidden">
-          {state?.menu?.active === "calendar" && (
+          {!state?.menu?.active || state?.menu?.active === "calendar" && (
             <CalendarGrid
               colors={colors}
               shot={shot}
