@@ -30,7 +30,14 @@ ipcMain.handle('load-data', async () => {
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Loading data from ${p}`)
-    if (!fs.existsSync(p)) return null
+    if (!fs.existsSync(p)) {
+      // Ensure directory exists
+      await fs.promises.mkdir(path.dirname(p), { recursive: true })
+      // Create default data file
+      const defaultData = { events: [], createdAt: new Date().toISOString() }
+      await fs.promises.writeFile(p, JSON.stringify(defaultData, null, 2), 'utf-8')
+      return defaultData
+    }
     const raw = await fs.promises.readFile(p, 'utf-8')
     return JSON.parse(raw)
   } catch (e) {
@@ -43,8 +50,7 @@ ipcMain.handle('save-data', async (event, data) => {
     const p = path.join(app.getPath('userData'), DATA_FILE)
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
-
-    console.log(`Loading data from ${p}`)
+    console.log(`Saving data to ${p}`)
     await fs.promises.writeFile(p, JSON.stringify(data, null, 2), 'utf-8')
     return { ok: true }
   } catch (e) {
