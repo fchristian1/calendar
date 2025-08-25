@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -9,7 +10,23 @@ const __dirname = path.dirname(__filename)
 
 // Default DATA_FILE: keep the existing Windows path as a fallback, but
 // prefer the platform-appropriate userData location once the app is ready.
-let DATA_FILE = 'C:\\Users\\%USERNAME%\\Seafile\\Seafile\\Dateiablage\\247calender_data.json'
+// DATA_FILE may be explicitly set via IPC. If not, resolve to a sensible per-user
+// location: prefer Electron's userData folder when available, otherwise fall back
+// to the user's home directory.
+let DATA_FILE = null
+
+function resolveDataFile() {
+  if (DATA_FILE) return DATA_FILE
+  try {
+    if (app && app.isReady()) {
+      return path.join(app.getPath('userData'), '247calender_data.json')
+    }
+  } catch (e) {
+    // ignore
+  }
+  // fallback
+  return path.join(os.homedir(), '247calender_data.json')
+}
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -28,7 +45,7 @@ const createWindow = () => {
 // IPC handlers to persist data in the user's app data folder
 ipcMain.handle('load-data', async () => {
   try {
-    const p = path.join(DATA_FILE)
+    const p = resolveDataFile()
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Loading data from ${p}`)
@@ -49,7 +66,7 @@ ipcMain.handle('load-data', async () => {
 
 ipcMain.handle('save-data', async (event, data) => {
   try {
-    const p = path.join(DATA_FILE)
+    const p = resolveDataFile()
     // C:\Users\<User>\AppData\Roaming\247calendar
     // /home/<user>/.config/247calendar/247calender_data.json
     console.log(`Saving data to ${p}`)
@@ -60,7 +77,7 @@ ipcMain.handle('save-data', async (event, data) => {
   }
 })
 ipcMain.handle('get-data-file-path', async () => {
-  return DATA_FILE
+  return resolveDataFile()
 })
 ipcMain.handle('set-data-file-path', async (event, newPath) => {
   DATA_FILE = newPath
@@ -76,19 +93,12 @@ ipcMain.handle('show-open-dialog-api', async (event, options) => {
 })
 
 app.whenReady().then(() => {
-  // If we're not on Windows and the developer left the Windows example path,
-  // switch to the platform user data folder so data is stored in a sensible place.
+
+  // Ensure DATA_FILE is resolved now that app is ready.
   try {
-    if (process.platform !== 'win32') {
-      const defaultPath = path.join(app.getPath('userData'), '247calender_data.json')
-      // Only override the hardcoded Windows example path
-      if (DATA_FILE && DATA_FILE.includes('C:\\Users\\%USERNAME%')) {
-        DATA_FILE = defaultPath
-      }
-    }
+    DATA_FILE = resolveDataFile()
   } catch (e) {
-    // ignore; keep existing DATA_FILE
-    console.warn('Could not set platform default DATA_FILE:', e?.message || e)
+    console.warn('Could not initialize DATA_FILE:', e?.message || e)
   }
 
   createWindow()
